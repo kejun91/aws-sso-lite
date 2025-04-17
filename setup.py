@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="aws-sso-lite",
-    version="0.0.2",
+    version="0.0.3",
     author="Jun Ke",
     author_email="kejun91@gmail.com",
     description="A lightweight package to do aws sso without aws cli",

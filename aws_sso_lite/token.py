@@ -22,6 +22,9 @@ class AWSSSO:
     
     def store_sso_token(self, start_url, create_token_response):
         self._token_fetcher.store_token(start_url, create_token_response)
+
+    def is_sso_token_valid(self, start_url):
+        return self._token_fetcher.is_sso_token_valid(start_url)
     
 def get_sso_token_by_start_url(start_url):
     token = None

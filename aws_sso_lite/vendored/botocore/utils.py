@@ -204,3 +204,15 @@ class SSOTokenFetcher(object):
 
         cache_key = hashlib.sha1(start_url.encode('utf-8')).hexdigest()
         self._cache[cache_key] = token
+
+    def is_sso_token_valid(self, start_url):
+        cache_key = hashlib.sha1(start_url.encode('utf-8')).hexdigest()
+        
+        is_valid = False
+        
+        if cache_key in self._cache:
+            token = self._cache[cache_key]
+            if not self._is_expired(token):
+                is_valid = True
+        
+        return is_valid
