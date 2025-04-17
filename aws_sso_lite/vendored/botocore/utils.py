@@ -24,13 +24,11 @@ from botocore.utils import (
     CachedProperty,
     datetime2timestamp
 )
-import botocore.awsrequest
-import botocore.httpsession
 from botocore.compat import (
         total_seconds
 )
 
-from aws_sso_lite.vendored.botocore.exceptions import PendingAuthorizationExpiredError
+from ...vendored.botocore.exceptions import PendingAuthorizationExpiredError
 
 
 
@@ -193,3 +191,16 @@ class SSOTokenFetcher(object):
 
     def fetch_token(self, start_url, force_refresh=False):
         return self._token(start_url, force_refresh)
+    
+    def store_token(self, start_url, create_token_response):
+        response = create_token_response
+        expires_in = datetime.timedelta(seconds=response['expiresIn'])
+        token = {
+            'startUrl': start_url,
+            'region': self._sso_region,
+            'accessToken': response['accessToken'],
+            'expiresAt': self._time_fetcher() + expires_in
+        }
+
+        cache_key = hashlib.sha1(start_url.encode('utf-8')).hexdigest()
+        self._cache[cache_key] = token

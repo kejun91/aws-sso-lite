@@ -6,7 +6,7 @@ import sys
 import webbrowser
 from botocore.credentials import JSONFileCache
 
-from aws_sso_lite.vendored.botocore.utils import SSOTokenFetcher
+from ....vendored.botocore.utils import SSOTokenFetcher
 
 
 LOG = logging.getLogger(__name__)
