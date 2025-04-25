@@ -41,7 +41,7 @@ class SSOTokenFetcher(object):
     _SLOW_DOWN_DELAY = 5
     # The default interval of 5 is also defined in the RFC (see above link)
     _DEFAULT_INTERVAL = 5
-    _EXPIRY_WINDOW = 15 * 60
+    _EXPIRY_WINDOW = 0 * 60
     _CLIENT_REGISTRATION_TYPE = 'public'
     _GRANT_TYPE = 'urn:ietf:params:oauth:grant-type:device_code'
 
