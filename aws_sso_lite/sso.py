@@ -8,7 +8,7 @@ from .vendored.botocore.utils import SSOTokenFetcher
 import botocore.session
 from botocore.credentials import JSONFileCache
 from botocore.utils import SSOTokenLoader
-from botocore.exceptions import SSOTokenLoadError, SlowDownException, AuthorizationPendingException, ExpiredTokenException
+from botocore.exceptions import SSOTokenLoadError
 
 logger = getLogger(__name__)
 
@@ -64,12 +64,12 @@ class AWSSSO:
                     self._token_fetcher.store_token(self._start_url, create_token_response)
                     
                 return {"status":"successful"}
-            except SlowDownException:
+            except self.sso_oidc_client.exceptions.SlowDownException:
                 time.sleep(5)
                 retry = True
-            except AuthorizationPendingException:
+            except self.sso_oidc_client.exceptions.AuthorizationPendingException:
                 return {"status":"pending"}
-            except ExpiredTokenException as e:
+            except self.sso_oidc_client.exceptions.ExpiredTokenException as e:
                 return {"status":"error","error": "Token expired. Please restart the authorization process."}
             
         return {"status":"error","error": "Unknown error occurred during token creation."}
