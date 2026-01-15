@@ -17,8 +17,7 @@ bc_session = botocore.session.Session()
 class AWSSSO:
     def __init__(self, start_url:str, sso_region:str):
         self._start_url = start_url
-
-        self._cache_key = hash(f'sso_token::{self._start_url}::{sso_region}')
+        self._sso_region = sso_region
 
         self._token_fetcher = SSOTokenFetcher(
             sso_region=sso_region,
@@ -33,6 +32,13 @@ class AWSSSO:
 
         self.sso_oidc_client = boto3_session.client('sso-oidc')
         self.sso_client = boto3_session.client('sso')
+
+    def _get_cache_key(self):
+        """Generate cache key including access token to auto-invalidate on token change"""
+        access_token = self._get_sso_access_token()
+        # If no token, use a fixed key (cache will be empty anyway)
+        token_part = hash(access_token) if access_token else 'no-token'
+        return hash(f'{self._start_url}::{self._sso_region}::{token_part}')
 
     
     def start_device_authorization(self):
@@ -102,18 +108,21 @@ class AWSSSO:
             return None
     
     def get_aws_accounts(self):
-        if self._cache_key in aws_accounts_cache:
-            return aws_accounts_cache[self._cache_key]
+        cache_key = self._get_cache_key()
+        
+        if cache_key in aws_accounts_cache:
+            return aws_accounts_cache[cache_key]
 
         access_token = self._get_sso_access_token()
         accounts = list(chain.from_iterable(
                 page['accountList'] 
                 for page in self.sso_client.get_paginator('list_accounts').paginate(accessToken=access_token)))
-        aws_accounts_cache[self._cache_key] = accounts
+        aws_accounts_cache[cache_key] = accounts
         return accounts
     
     def get_aws_account_roles(self, account_id:str):
-        cache_key = f'{self._cache_key}::roles::{account_id}'
+        cache_key = f'{self._get_cache_key()}::roles::{account_id}'
+        
         if cache_key in aws_account_roles_cache:
             return aws_account_roles_cache[cache_key]
 
