@@ -28,9 +28,6 @@ from botocore.compat import (
         total_seconds
 )
 
-from ...vendored.botocore.exceptions import PendingAuthorizationExpiredError
-
-
 
 logger = logging.getLogger(__name__)
 
@@ -174,7 +171,7 @@ class SSOTokenFetcher(object):
             except self._client.exceptions.AuthorizationPendingException:
                 pass
             except self._client.exceptions.ExpiredTokenException:
-                raise PendingAuthorizationExpiredError()
+                logger.error("The pending authorization to retrieve an SSO token has expired. The device authorization flow to retrieve an SSO token must be restarted.")
             self._sleep(interval)
 
     def _token(self, start_url, force_refresh):
