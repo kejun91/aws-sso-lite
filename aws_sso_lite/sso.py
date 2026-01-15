@@ -109,6 +109,8 @@ class AWSSSO:
     
     def get_aws_accounts(self):
         cache_key = self._get_cache_key()
+
+        global aws_accounts_cache
         
         if cache_key in aws_accounts_cache:
             return aws_accounts_cache[cache_key]
@@ -122,6 +124,8 @@ class AWSSSO:
     
     def get_aws_account_roles(self, account_id:str):
         cache_key = f'{self._get_cache_key()}::roles::{account_id}'
+
+        global aws_account_roles_cache
         
         if cache_key in aws_account_roles_cache:
             return aws_account_roles_cache[cache_key]
@@ -142,6 +146,65 @@ class AWSSSO:
         
         logger.debug(f'Account name {account_name} not found')
         return None
+    
+    def get_boto3_session(self, account_id:str, sso_role_name:str, assumed_role_arn:str = None):
+        if assumed_role_arn is not None:
+            return self.get_boto3_session_using_assumed_role_credentials(account_id, sso_role_name, assumed_role_arn)
+        else:
+            return self.get_boto3_session_using_sso_role_credentials(account_id, sso_role_name)
+
+    def get_boto3_session_using_sso_role_credentials(self, account_id:str, sso_role_name:str):
+        cache_key = f'{self._get_cache_key()}::sso-role::{account_id}::{sso_role_name}'
+
+        global _credentials
+        global _sessions
+
+        if cache_key in _credentials and cache_key in _sessions:
+            if _credentials.get(cache_key).get('expiration') > int(datetime.now(tz=timezone.utc).timestamp() * 1000):
+                return _sessions.get(cache_key)
+
+        response = self.get_role_credentials(account_id, sso_role_name)
+
+        role_credentials = response.get('roleCredentials', {})
+
+        _credentials[cache_key] = role_credentials
+        _sessions[cache_key] = boto3.session.Session(
+            aws_access_key_id=role_credentials["accessKeyId"],
+            aws_secret_access_key=role_credentials["secretAccessKey"],
+            aws_session_token=role_credentials["sessionToken"]
+        )
+
+        return _sessions[cache_key]
+
+    def get_boto3_session_using_assumed_role_credentials(self, account_id:str, sso_role_name: str, assumed_role_arn: str):
+        cache_key = f'{self._get_cache_key()}::assumed-role::{account_id}::{sso_role_name}::{assumed_role_arn}'
+
+        global _credentials
+        global _sessions
+
+        if cache_key in _credentials and cache_key in _sessions:
+            if _credentials.get(cache_key).get('Expiration') > datetime.now(tz=timezone.utc):
+                return _sessions.get(cache_key)
+
+        def _assumed_role():
+            sso_role_session = self.get_boto3_session_using_sso_role_credentials(account_id, sso_role_name)
+            sts_client = sso_role_session.client('sts', region_name=self._sso_region)
+            return sts_client.assume_role(
+                RoleArn=assumed_role_arn,
+                RoleSessionName=f'vwsre-{datetime.now().timestamp()}'
+            )
+        
+        response = _assumed_role()
+
+        _credentials[cache_key] = response.get('Credentials')
+        _sessions[cache_key] = boto3.session.Session(
+            aws_access_key_id=_credentials[cache_key]['AccessKeyId'],
+            aws_secret_access_key=_credentials[cache_key]['SecretAccessKey'],
+            aws_session_token=_credentials[cache_key]['SessionToken']
+        )
+        return _sessions[cache_key]
 
 aws_accounts_cache = {}
 aws_account_roles_cache = {}
+_credentials = {}
+_sessions = {}

@@ -67,10 +67,31 @@ for role in roles:
 account_id = sso.get_account_id_by_account_name("Production")
 ```
 
-### Getting Temporary Credentials
+### Getting boto3 Sessions (Recommended)
 
 ```python
-# Get temporary credentials for a specific account and role
+# Get a boto3 session directly (handles credential management automatically)
+session = sso.get_boto3_session(
+    account_id="123456789012",
+    sso_role_name="AdministratorAccess"
+)
+
+# Use the session to create AWS service clients
+s3 = session.client('s3')
+ec2 = session.client('ec2', region_name='us-west-2')
+
+# With assumed role (for cross-account access)
+session = sso.get_boto3_session(
+    account_id="123456789012",
+    sso_role_name="AdministratorAccess",
+    assumed_role_arn="arn:aws:iam::999999999999:role/CrossAccountRole"
+)
+```
+
+### Getting Temporary Credentials (Manual)
+
+```python
+# If you need raw credentials instead of a session
 credentials = sso.get_role_credentials(
     account_id="123456789012",
     role_name="AdministratorAccess"
@@ -137,6 +158,31 @@ Finds an account ID by account name.
 
 #### `get_role_credentials(account_id: str, role_name: str) -> dict`
 Retrieves temporary AWS credentials for a specific account and role.
+
+#### `get_boto3_session(account_id: str, sso_role_name: str, assumed_role_arn: str = None) -> boto3.Session`
+Creates a boto3 session with automatic credential management and caching.
+
+**Parameters:**
+- `account_id`: The AWS account ID
+- `sso_role_name`: The SSO role name to use
+- `assumed_role_arn`: (Optional) ARN of a role to assume for cross-account access
+
+**Returns:** A configured `boto3.Session` object
+
+**Note:** Sessions and credentials are automatically cached and reused until they e
+- Cache keys include the access token hash, so cache is automatically invalidated when you re-authenticate.
+- The `AWSSSO` instance can be safely kept alive for long periods - it handles token expiration gracefully.xpire.
+
+## Caching Behavior
+
+This library implements intelligent caching at multiple levels:
+
+1. **SSO Tokens**: Cached in `~/.aws/sso/cache/` (shared with AWS CLI)
+2. **Account/Role Lists**: Cached in-memory, automatically invalidated when SSO token changes
+3. **boto3 Sessions**: Cached in-memory with automatic expiration handling
+4. **Temporary Credentials**: Cached and reused until they expire
+
+All caches are automatically invalidated when tokens expire or change, ensuring you always work with valid credentials.
 
 ## Requirements
 
