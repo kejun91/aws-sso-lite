@@ -76,6 +76,8 @@ class AWSSSO:
     
     def get_role_credentials(self, account_id:str, role_name:str):
         access_token = self._get_sso_access_token()
+        if access_token is None:
+            raise Exception("No valid SSO access token. Please re-authenticate.")
         return self.sso_client.get_role_credentials(
             accessToken=access_token,
             accountId=account_id,
@@ -116,6 +118,8 @@ class AWSSSO:
             return aws_accounts_cache[cache_key]
 
         access_token = self._get_sso_access_token()
+        if access_token is None:
+            raise Exception("No valid SSO access token. Please re-authenticate.")
         accounts = list(chain.from_iterable(
                 page['accountList'] 
                 for page in self.sso_client.get_paginator('list_accounts').paginate(accessToken=access_token)))
@@ -131,6 +135,8 @@ class AWSSSO:
             return aws_account_roles_cache[cache_key]
 
         access_token = self._get_sso_access_token()
+        if access_token is None:
+            raise Exception("No valid SSO access token. Please re-authenticate.")
         roles = list(chain.from_iterable(
             page['roleList'] 
             for page in self.sso_client.get_paginator('list_account_roles').paginate(accessToken=access_token, accountId=account_id))
